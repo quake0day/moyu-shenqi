@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>KMBox Work Simulator</title>
+<style>
+  :root {
+    --bg: #1a1a2e; --surface: #16213e; --surface2: #0f3460;
+    --primary: #e94560; --primary-hover: #ff6b81;
+    --text: #eee; --text2: #aab;
+    --green: #2ecc71; --orange: #f39c12; --red: #e74c3c; --blue: #3498db;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text);
+    overflow-y: auto; user-select: none;
+  }
+  .container { max-width: 660px; margin: 0 auto; padding: 16px; }
+
+  .card {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+  }
+
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .row:last-child { margin-bottom: 0; }
+
+  label { font-size: 13px; color: var(--text2); white-space: nowrap; }
+  input[type="text"], input[type="number"] {
+    background: var(--bg); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text); border-radius: 4px; padding: 6px 10px; font-size: 13px;
+    outline: none; transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--primary); }
+  input[type="number"] { width: 65px; }
+  input.w-lg { width: 150px; }
+  input.w-xl { width: 260px; }
+
+  select {
+    background: var(--bg); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text); border-radius: 4px; padding: 6px 10px; font-size: 13px;
+    outline: none; min-width: 200px;
+  }
+
+  textarea {
+    width: 100%; background: var(--bg); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text); border-radius: 4px; padding: 8px 10px; font-size: 13px;
+    outline: none; resize: vertical; font-family: inherit; line-height: 1.5;
+  }
+  textarea:focus { border-color: var(--primary); }
+
+  button {
+    background: var(--primary); color: white; border: none; border-radius: 4px;
+    padding: 7px 18px; font-size: 13px; cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  button:hover { background: var(--primary-hover); }
+  button:active { transform: scale(0.97); }
+  button.secondary { background: var(--surface2); }
+  button.secondary:hover { background: #1a4a7a; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-success { background: var(--green); }
+  .btn-success:hover { background: #27ae60; }
+  .btn-danger { background: var(--red); }
+  .btn-danger:hover { background: #c0392b; }
+
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  }
+  .status-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.off { background: var(--red); }
+
+  .toggle {
+    position: relative; width: 40px; height: 22px; cursor: pointer;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle .slider {
+    position: absolute; inset: 0; background: #555; border-radius: 11px;
+    transition: background 0.3s;
+  }
+  .toggle .slider::before {
+    content: ''; position: absolute; width: 16px; height: 16px;
+    left: 3px; bottom: 3px; background: white; border-radius: 50%;
+    transition: transform 0.3s;
+  }
+  .toggle input:checked + .slider { background: var(--green); }
+  .toggle input:checked + .slider::before { transform: translateX(18px); }
+
+  .radio-group { display: flex; gap: 8px; }
+  .radio-btn {
+    padding: 4px 12px; background: var(--bg); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px; font-size: 12px; cursor: pointer; color: var(--text2);
+    transition: all 0.2s;
+  }
+  .radio-btn.active {
+    background: var(--surface2); border-color: var(--primary); color: var(--text);
+  }
+
+  .log-box {
+    background: #0d1117; border-radius: 4px; padding: 8px; font-family: 'Consolas', monospace;
+    font-size: 11px; color: #8b949e; height: 100px; overflow-y: auto;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .tab-bar { display: flex; gap: 0; margin-bottom: 12px; }
+  .tab {
+    padding: 8px 20px; background: var(--bg); border: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer; font-size: 13px; color: var(--text2); transition: all 0.2s;
+  }
+  .tab:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .tab:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  .tab.active { background: var(--surface2); color: var(--text); border-color: var(--primary); }
+
+  .controls { display: flex; gap: 12px; align-items: center; padding: 12px 0; }
+  .controls .status { margin-left: auto; font-size: 13px; color: var(--text2); }
+
+  .hidden { display: none !important; }
+  .sep { width: 1px; height: 16px; background: rgba(255,255,255,0.1); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 连接 -->
+  <div class="card">
+    <div class="card-title">Device Connection</div>
+    <div class="row">
+      <label>IP</label>
+      <input type="text" id="ip" value="192.168.2.188" class="w-lg">
+      <label>Port</label>
+      <input type="text" id="port" value="9418" style="width:70px">
+      <label>UUID</label>
+      <input type="text" id="uuid" value="EEDA0C3D" style="width:100px">
+      <button id="btnConnect" class="btn-success">Connect</button>
+      <span class="status-dot off" id="connDot"></span>
+      <span id="connLabel" style="font-size:12px;color:var(--text2)">Disconnected</span>
+    </div>
+  </div>
+
+  <!-- 鼠标 -->
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div class="card-title" style="margin:0">Mouse</div>
+      <label class="toggle"><input type="checkbox" id="mouseEnabled" checked><span class="slider"></span></label>
+    </div>
+    <div class="row">
+      <label>Interval(s)</label>
+      <input type="number" id="mouseMinInt" value="3" step="0.5" min="0.5">
+      <span>~</span>
+      <input type="number" id="mouseMaxInt" value="10" step="0.5">
+      <div class="sep"></div>
+      <label>Range(px)</label>
+      <input type="number" id="mouseRange" value="120" min="10" max="500">
+    </div>
+    <div class="row">
+      <label>Mode</label>
+      <div class="radio-group" id="mouseMode">
+        <div class="radio-btn active" data-v="beizer">Bezier</div>
+        <div class="radio-btn" data-v="auto">Human</div>
+        <div class="radio-btn" data-v="direct">Direct</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 键盘 -->
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div class="card-title" style="margin:0">Keyboard</div>
+      <label class="toggle"><input type="checkbox" id="keyEnabled" checked><span class="slider"></span></label>
+    </div>
+    <div class="row">
+      <label>Speed(s/char)</label>
+      <input type="number" id="typeMin" value="0.05" step="0.01" min="0.01">
+      <span>~</span>
+      <input type="number" id="typeMax" value="0.25" step="0.01">
+      <div class="sep"></div>
+      <label>Think pause(s)</label>
+      <input type="number" id="thinkMin" value="1" step="0.5">
+      <span>~</span>
+      <input type="number" id="thinkMax" value="3" step="0.5">
+    </div>
+    <div class="row">
+      <label>Burst chars</label>
+      <input type="number" id="burstMin" value="20" min="5">
+      <span>~</span>
+      <input type="number" id="burstMax" value="60">
+      <div class="sep"></div>
+      <label>Paragraph gap(s)</label>
+      <input type="number" id="loopMin" value="8" step="1">
+      <span>~</span>
+      <input type="number" id="loopMax" value="20" step="1">
+    </div>
+  </div>
+
+  <!-- 文本来源 -->
+  <div class="card">
+    <div class="card-title">Text Source</div>
+    <div class="tab-bar">
+      <div class="tab active" data-tab="manual">Manual Text</div>
+      <div class="tab" data-tab="ollama">Ollama AI</div>
+    </div>
+
+    <div id="tabManual">
+      <textarea id="manualText" rows="6">Dear Team,
+
+I have reviewed the latest project requirements and would like to share some thoughts on the implementation plan. Based on our discussion yesterday, I think we should focus on the following areas:
+
+1. Database optimization - We need to improve query performance for the reporting module.
+2. API refactoring - The current endpoints need better error handling and validation.
+3. Unit test coverage - We should aim for at least 80% coverage on critical modules.
+
+Please let me know if you have any questions or concerns.
+
+Best regards</textarea>
+      <div class="row" style="margin-top:8px">
+        <label class="toggle"><input type="checkbox" id="loopText" checked><span class="slider"></span></label>
+        <label>Loop text after completion</label>
+      </div>
+    </div>
+
+    <div id="tabOllama" class="hidden">
+      <div class="row">
+        <label>Ollama URL</label>
+        <input type="text" id="ollamaUrl" value="http://localhost:11434" class="w-xl">
+        <button id="btnRefresh" class="secondary">Refresh Models</button>
+      </div>
+      <div class="row">
+        <label>Model</label>
+        <select id="ollamaModel"></select>
+        <span id="modelStatus" style="font-size:12px;color:var(--text2)"></span>
+      </div>
+      <div class="row">
+        <label>Topic</label>
+        <input type="text" id="aiTopic" value="pharmaceutical research, drug development, clinical trials" class="w-xl">
+      </div>
+      <div class="row" style="flex-direction:column;align-items:stretch">
+        <label>System Prompt</label>
+        <textarea id="aiPrompt" rows="3">You are a pharmaceutical professional writing work emails and reports. Write a detailed paragraph about the given topic. Use professional language. Only output the text content, no titles or formatting. Each response should be a different subtopic. Keep it between 200-400 words.</textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 控制 -->
+  <div class="controls">
+    <button id="btnStart" class="btn-success" disabled>Start</button>
+    <button id="btnStop" class="btn-danger" disabled>Stop</button>
+    <div class="status" id="runStatus">Ready</div>
+  </div>
+
+  <!-- 日志 -->
+  <div class="card">
+    <div class="card-title">Log</div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

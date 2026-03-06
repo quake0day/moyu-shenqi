@@ -1,0 +1,29 @@
+{
+  "name": "kmbox-work-simulator",
+  "version": "1.0.0",
+  "description": "KMBox Net Work Simulator",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --mac --linux",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.kmbox.worksimulator",
+    "productName": "KMBox Work Simulator",
+    "files": ["**/*"],
+    "win": {
+      "target": "dir",
+      "signAndEditExecutable": false,
+      "sign": false
+    },
+    "mac": { "target": "dmg" },
+    "linux": { "target": "AppImage" }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}
