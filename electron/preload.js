@@ -13,3 +13,8 @@ contextBridge.exposeInMainWorld('ollama', {
   listModels: (url) => ipcRenderer.invoke('ollama:listModels', url),
   generate: (url, model, prompt, system) => ipcRenderer.invoke('ollama:generate', url, model, prompt, system),
 });
+
+contextBridge.exposeInMainWorld('docx', {
+  openFile: () => ipcRenderer.invoke('docx:openFile'),
+  parse: (filePath, mode) => ipcRenderer.invoke('docx:parse', filePath, mode),
+});

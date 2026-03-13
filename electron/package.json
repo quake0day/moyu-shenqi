@@ -13,17 +13,26 @@
   "build": {
     "appId": "com.kmbox.worksimulator",
     "productName": "KMBox Work Simulator",
-    "files": ["**/*"],
+    "files": [
+      "**/*"
+    ],
     "win": {
       "target": "dir",
       "signAndEditExecutable": false,
       "sign": false
     },
-    "mac": { "target": "dmg" },
-    "linux": { "target": "AppImage" }
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "mammoth": "^1.12.0"
   }
 }

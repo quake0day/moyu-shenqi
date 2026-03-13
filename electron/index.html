@@ -117,6 +117,7 @@
   }
   .tab:first-child { border-radius: var(--radius) 0 0 var(--radius); }
   .tab:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  .tab:not(:first-child):not(:last-child) { border-radius: 0; }
   .tab.active { background: var(--surface2); color: var(--text); border-color: var(--primary); }
 
   .controls { display: flex; gap: 12px; align-items: center; padding: 12px 0; }
@@ -206,6 +207,7 @@
     <div class="tab-bar">
       <div class="tab active" data-tab="manual">Manual Text</div>
       <div class="tab" data-tab="ollama">Ollama AI</div>
+      <div class="tab" data-tab="docx">Word Doc</div>
     </div>
 
     <div id="tabManual">
@@ -223,6 +225,27 @@ Best regards</textarea>
       <div class="row" style="margin-top:8px">
         <label class="toggle"><input type="checkbox" id="loopText" checked><span class="slider"></span></label>
         <label>Loop text after completion</label>
+      </div>
+    </div>
+
+    <div id="tabDocx" class="hidden">
+      <div class="row">
+        <button id="btnOpenDocx" class="secondary">Open .docx File</button>
+        <span id="docxFileName" style="font-size:12px;color:var(--text2)">No file selected</span>
+      </div>
+      <div class="row">
+        <label>Output Mode</label>
+        <div class="radio-group" id="docxMode">
+          <div class="radio-btn active" data-v="markdown">Markdown</div>
+          <div class="radio-btn" data-v="rich">Rich Format (Ctrl+B/I/U)</div>
+        </div>
+      </div>
+      <div class="row" style="flex-direction:column;align-items:stretch">
+        <label>Preview</label>
+        <textarea id="docxPreview" rows="6" readonly style="opacity:0.8"></textarea>
+      </div>
+      <div class="row" style="margin-top:4px">
+        <span id="docxStats" style="font-size:12px;color:var(--text2)"></span>
       </div>
     </div>
 

@@ -59,6 +59,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     activeTab = tab.dataset.tab;
     $('tabManual').classList.toggle('hidden', activeTab !== 'manual');
     $('tabOllama').classList.toggle('hidden', activeTab !== 'ollama');
+    $('tabDocx').classList.toggle('hidden', activeTab !== 'docx');
   };
 });
 
@@ -100,6 +101,171 @@ $('btnRefresh').onclick = async () => {
 };
 // 启动时刷新
 setTimeout(() => $('btnRefresh').click(), 500);
+
+// ---- Word Document ----
+let docxFilePath = null;
+let docxParsedText = '';      // markdown mode text
+let docxParsedActions = null;  // rich mode actions
+
+$('btnOpenDocx').onclick = async () => {
+  const result = await window.docx.openFile();
+  if (!result.ok) return;
+  docxFilePath = result.path;
+  $('docxFileName').textContent = result.name;
+  await parseDocx();
+};
+
+async function parseDocx() {
+  if (!docxFilePath) return;
+  const mode = document.querySelector('#docxMode .radio-btn.active').dataset.v;
+  log(`<span style="color:#3498db">[Word] Parsing (${mode} mode)...</span>`);
+
+  const result = await window.docx.parse(docxFilePath, mode);
+  if (!result.ok) {
+    log(`<span style="color:#e74c3c">[Word] Error: ${result.error}</span>`);
+    return;
+  }
+
+  if (mode === 'markdown') {
+    docxParsedText = result.text;
+    docxParsedActions = null;
+    $('docxPreview').value = docxParsedText;
+    $('docxStats').textContent = `${docxParsedText.length} chars (Markdown)`;
+  } else {
+    docxParsedActions = result.actions;
+    docxParsedText = '';
+    // Build preview from actions
+    const preview = result.actions.map(a => a.type === 'text' ? a.value : `[${a.key}]`).join('');
+    $('docxPreview').value = preview;
+    const textLen = result.actions.filter(a => a.type === 'text').reduce((s, a) => s + a.value.length, 0);
+    const fmtCount = result.actions.filter(a => a.type === 'format').length;
+    $('docxStats').textContent = `${textLen} chars, ${fmtCount} format commands (Rich)`;
+  }
+
+  if (result.warnings && result.warnings.length) {
+    result.warnings.forEach(w => log(`<span style="color:#f39c12">[Word] ${w.message}</span>`));
+  }
+  log(`<span style="color:#2ecc71">[Word] Parse complete</span>`);
+}
+
+// Re-parse when mode changes
+document.querySelector('#docxMode').addEventListener('click', (e) => {
+  const btn = e.target.closest('.radio-btn');
+  if (btn && docxFilePath) setTimeout(parseDocx, 50);
+});
+
+// ---- Rich format typing (send keyboard shortcuts) ----
+const HID_LEFT_CTRL = 0xE0;
+
+async function sendCtrlKey(hidKeyCode) {
+  // Release all first
+  await window.kmbox.keyup(0);
+  // Press Ctrl
+  await window.kmbox.keydown(HID_LEFT_CTRL);
+  await sleep(randRange(15, 30));
+  // Press the key
+  await window.kmbox.keydown(hidKeyCode);
+  await sleep(randRange(30, 60));
+  // Release
+  await window.kmbox.keyup(0);
+  await sleep(5);
+  await window.kmbox.keyup(0);
+  await window.kmbox.keyup(HID_LEFT_CTRL);
+  await sleep(randRange(30, 80));
+}
+
+async function typeActions(actions) {
+  let burst = 0;
+  const burstLimit = randInt(numVal('burstMin'), numVal('burstMax'));
+  let currentBurstLimit = burstLimit;
+  let totalChars = actions.filter(a => a.type === 'text').reduce((s, a) => s + a.value.length, 0);
+  let typed = 0;
+
+  for (let ai = 0; ai < actions.length && running; ai++) {
+    const action = actions[ai];
+
+    if (action.type === 'format') {
+      // Send format keyboard shortcut
+      switch (action.key) {
+        case 'bold_on':
+        case 'bold_off':
+          await sendCtrlKey(0x05); // Ctrl+B
+          log('[Format] Bold toggle');
+          break;
+        case 'italic_on':
+        case 'italic_off':
+          await sendCtrlKey(0x0C); // Ctrl+I
+          log('[Format] Italic toggle');
+          break;
+        case 'underline_on':
+        case 'underline_off':
+          await sendCtrlKey(0x18); // Ctrl+U
+          log('[Format] Underline toggle');
+          break;
+        case 'heading_1': case 'heading_2': case 'heading_3':
+        case 'heading_4': case 'heading_5': case 'heading_6':
+          // Skip heading format in rich mode - just type as plain text
+          break;
+
+        // ---- Table handling ----
+        // In Word/Google Docs: Tab moves between cells in an existing table
+        // Strategy: insert table first (rows x cols), then Tab through cells
+        case 'table_start':
+          log(`[Format] Table ${action.rows}x${action.cols}`);
+          // Insert table in Word: Alt+N → T → I (Insert Table dialog)
+          // Or in Google Docs: Alt+I → T
+          // For now: we just start typing, user should have cursor in a table
+          // or we send Tab-separated text that can be converted to table later
+          break;
+        case 'table_next_cell':
+          // Tab key moves to next cell in Word/Docs table
+          await typeChar('\t');
+          await sleep(randRange(100, 300));
+          break;
+        case 'table_next_row':
+          // In a Word table, Tab from last cell creates/moves to next row
+          // Outside table, just use Enter
+          await typeChar('\t');
+          await sleep(randRange(200, 500));
+          break;
+        case 'table_end':
+          // Move out of table: press Enter twice or Down arrow
+          await typeChar('\n');
+          await sleep(randRange(200, 400));
+          log('[Format] Table end');
+          break;
+      }
+      await sleep(randRange(50, 150));
+      continue;
+    }
+
+    // Text action - type char by char
+    const text = action.value;
+    for (let i = 0; i < text.length && running; i++) {
+      await typeChar(text[i]);
+      typed++;
+      burst++;
+
+      if (typed % 30 === 0) log(`[Keyboard] ${typed}/${totalChars} chars`);
+
+      // Pauses
+      const char = text[i];
+      if (char === '\n') await sleep(randRange(500, 1500));
+      else if ('.!?'.includes(char)) await sleep(randRange(300, 800));
+      else if (',;:'.includes(char)) await sleep(randRange(200, 500));
+      else await sleep(randRange(numVal('typeMin') * 1000, numVal('typeMax') * 1000));
+
+      // Think pause
+      if (burst >= currentBurstLimit) {
+        const pause = randRange(numVal('thinkMin'), numVal('thinkMax'));
+        log(`[Think] ${pause.toFixed(1)}s pause`);
+        await sleepInterruptible(pause * 1000);
+        burst = 0;
+        currentBurstLimit = randInt(numVal('burstMin'), numVal('burstMax'));
+      }
+    }
+  }
+}
 
 // ---- 模拟打字 ----
 async function typeChar(char) {
@@ -196,10 +362,28 @@ async function runLoop() {
     // 键盘
     if ($('keyEnabled').checked) {
       let text = '';
+      let useActions = false;
 
       if (activeTab === 'manual') {
         text = val('manualText');
         if (!text) { await sleep(500); continue; }
+      } else if (activeTab === 'docx') {
+        // Word Document mode
+        const docxModeVal = document.querySelector('#docxMode .radio-btn.active').dataset.v;
+        if (docxModeVal === 'markdown') {
+          text = docxParsedText;
+          if (!text) {
+            log('<span style="color:#f39c12">[Word] No document loaded</span>');
+            await sleep(1000); continue;
+          }
+        } else {
+          // Rich format mode - use actions
+          if (!docxParsedActions || !docxParsedActions.length) {
+            log('<span style="color:#f39c12">[Word] No document loaded</span>');
+            await sleep(1000); continue;
+          }
+          useActions = true;
+        }
       } else {
         // Ollama AI 生成
         aiRound++;
@@ -222,9 +406,17 @@ async function runLoop() {
       }
 
       if (!running) break;
-      $('runStatus').textContent = `Typing... (${text.length} chars)`;
-      log(`[Start] Typing ${text.length} chars`);
-      await typeText(text);
+
+      if (useActions) {
+        const totalChars = docxParsedActions.filter(a => a.type === 'text').reduce((s, a) => s + a.value.length, 0);
+        $('runStatus').textContent = `Typing... (${totalChars} chars, rich format)`;
+        log(`[Start] Typing ${totalChars} chars with formatting`);
+        await typeActions(docxParsedActions);
+      } else {
+        $('runStatus').textContent = `Typing... (${text.length} chars)`;
+        log(`[Start] Typing ${text.length} chars`);
+        await typeText(text);
+      }
 
       if (!running) break;
 
