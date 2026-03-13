@@ -125,6 +125,29 @@
 
   .hidden { display: none !important; }
   .sep { width: 1px; height: 16px; background: rgba(255,255,255,0.1); }
+
+  .rich-editor {
+    width: 100%; min-height: 120px; max-height: 300px; overflow-y: auto;
+    background: #f8f9fa; color: #1a1a2e; border-radius: 4px;
+    padding: 10px 12px; font-size: 13px; font-family: 'Segoe UI', sans-serif;
+    line-height: 1.6; outline: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: border-color 0.2s;
+    user-select: text;
+  }
+  .rich-editor:focus { border-color: var(--primary); }
+  .rich-editor:empty::before {
+    content: 'Paste formatted content here (Ctrl+V from Word, web pages, etc.)';
+    color: #999; pointer-events: none;
+  }
+  .rich-editor table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+  .rich-editor td, .rich-editor th {
+    border: 1px solid #ccc; padding: 4px 8px; text-align: left;
+  }
+  .rich-editor th { background: #e9ecef; font-weight: 600; }
+  .rich-editor h1, .rich-editor h2, .rich-editor h3 { margin: 8px 0 4px; }
+  .rich-editor ul, .rich-editor ol { padding-left: 20px; margin: 4px 0; }
+  .rich-editor img { max-width: 100%; height: auto; }
 </style>
 </head>
 <body>
@@ -208,6 +231,7 @@
       <div class="tab active" data-tab="manual">Manual Text</div>
       <div class="tab" data-tab="ollama">Ollama AI</div>
       <div class="tab" data-tab="docx">Word Doc</div>
+      <div class="tab" data-tab="paste">Rich Paste</div>
     </div>
 
     <div id="tabManual">
@@ -246,6 +270,28 @@ Best regards</textarea>
       </div>
       <div class="row" style="margin-top:4px">
         <span id="docxStats" style="font-size:12px;color:var(--text2)"></span>
+      </div>
+    </div>
+
+    <div id="tabPaste" class="hidden">
+      <div class="row">
+        <label>Output Mode</label>
+        <div class="radio-group" id="pasteMode">
+          <div class="radio-btn active" data-v="markdown">Markdown</div>
+          <div class="radio-btn" data-v="rich">Rich Format (Ctrl+B/I/U)</div>
+        </div>
+        <button id="btnPasteClear" class="secondary" style="margin-left:auto">Clear</button>
+      </div>
+      <div class="row" style="flex-direction:column;align-items:stretch">
+        <label>Paste Content Here (supports formatting from Word, web, etc.)</label>
+        <div id="richEditor" class="rich-editor" contenteditable="true"></div>
+      </div>
+      <div class="row" style="flex-direction:column;align-items:stretch;margin-top:8px">
+        <label>Converted Preview</label>
+        <textarea id="pastePreview" rows="4" readonly style="opacity:0.8"></textarea>
+      </div>
+      <div class="row" style="margin-top:4px">
+        <span id="pasteStats" style="font-size:12px;color:var(--text2)"></span>
       </div>
     </div>
 

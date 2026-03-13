@@ -60,6 +60,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     $('tabManual').classList.toggle('hidden', activeTab !== 'manual');
     $('tabOllama').classList.toggle('hidden', activeTab !== 'ollama');
     $('tabDocx').classList.toggle('hidden', activeTab !== 'docx');
+    $('tabPaste').classList.toggle('hidden', activeTab !== 'paste');
   };
 });
 
@@ -153,6 +154,76 @@ document.querySelector('#docxMode').addEventListener('click', (e) => {
   const btn = e.target.closest('.radio-btn');
   if (btn && docxFilePath) setTimeout(parseDocx, 50);
 });
+
+// ---- Rich Paste ----
+let pasteParsedText = '';
+let pasteParsedActions = null;
+let pasteParseTimer = null;
+
+async function parsePasteContent() {
+  const editor = $('richEditor');
+  const html = editor.innerHTML;
+  if (!html || html === '<br>') {
+    pasteParsedText = '';
+    pasteParsedActions = null;
+    $('pastePreview').value = '';
+    $('pasteStats').textContent = '';
+    return;
+  }
+
+  const mode = document.querySelector('#pasteMode .radio-btn.active').dataset.v;
+  log(`<span style="color:#3498db">[Paste] Parsing (${mode} mode)...</span>`);
+
+  const result = await window.docx.parseHtml(html, mode);
+  if (!result.ok) {
+    log(`<span style="color:#e74c3c">[Paste] Error: ${result.error}</span>`);
+    return;
+  }
+
+  if (mode === 'markdown') {
+    pasteParsedText = result.text;
+    pasteParsedActions = null;
+    $('pastePreview').value = pasteParsedText;
+    $('pasteStats').textContent = `${pasteParsedText.length} chars (Markdown)`;
+  } else {
+    pasteParsedActions = result.actions;
+    pasteParsedText = '';
+    const preview = result.actions.map(a => a.type === 'text' ? a.value : `[${a.key}]`).join('');
+    $('pastePreview').value = preview;
+    const textLen = result.actions.filter(a => a.type === 'text').reduce((s, a) => s + a.value.length, 0);
+    const fmtCount = result.actions.filter(a => a.type === 'format').length;
+    $('pasteStats').textContent = `${textLen} chars, ${fmtCount} format commands (Rich)`;
+  }
+
+  log(`<span style="color:#2ecc71">[Paste] Parse complete</span>`);
+}
+
+// Debounced parse on content change
+function schedulePasteParse() {
+  clearTimeout(pasteParseTimer);
+  pasteParseTimer = setTimeout(parsePasteContent, 500);
+}
+
+$('richEditor').addEventListener('input', schedulePasteParse);
+$('richEditor').addEventListener('paste', () => setTimeout(schedulePasteParse, 100));
+
+// Re-parse when mode changes
+document.querySelector('#pasteMode').addEventListener('click', (e) => {
+  const btn = e.target.closest('.radio-btn');
+  if (btn && $('richEditor').innerHTML && $('richEditor').innerHTML !== '<br>') {
+    setTimeout(parsePasteContent, 50);
+  }
+});
+
+// Clear button
+$('btnPasteClear').onclick = () => {
+  $('richEditor').innerHTML = '';
+  pasteParsedText = '';
+  pasteParsedActions = null;
+  $('pastePreview').value = '';
+  $('pasteStats').textContent = '';
+  log('[Paste] Cleared');
+};
 
 // ---- Rich format typing (send keyboard shortcuts) ----
 const HID_LEFT_CTRL = 0xE0;
@@ -377,9 +448,24 @@ async function runLoop() {
             await sleep(1000); continue;
           }
         } else {
-          // Rich format mode - use actions
           if (!docxParsedActions || !docxParsedActions.length) {
             log('<span style="color:#f39c12">[Word] No document loaded</span>');
+            await sleep(1000); continue;
+          }
+          useActions = true;
+        }
+      } else if (activeTab === 'paste') {
+        // Rich Paste mode
+        const pasteModeVal = document.querySelector('#pasteMode .radio-btn.active').dataset.v;
+        if (pasteModeVal === 'markdown') {
+          text = pasteParsedText;
+          if (!text) {
+            log('<span style="color:#f39c12">[Paste] No content pasted</span>');
+            await sleep(1000); continue;
+          }
+        } else {
+          if (!pasteParsedActions || !pasteParsedActions.length) {
+            log('<span style="color:#f39c12">[Paste] No content pasted</span>');
             await sleep(1000); continue;
           }
           useActions = true;
@@ -408,10 +494,11 @@ async function runLoop() {
       if (!running) break;
 
       if (useActions) {
-        const totalChars = docxParsedActions.filter(a => a.type === 'text').reduce((s, a) => s + a.value.length, 0);
+        const currentActions = activeTab === 'paste' ? pasteParsedActions : docxParsedActions;
+        const totalChars = currentActions.filter(a => a.type === 'text').reduce((s, a) => s + a.value.length, 0);
         $('runStatus').textContent = `Typing... (${totalChars} chars, rich format)`;
         log(`[Start] Typing ${totalChars} chars with formatting`);
-        await typeActions(docxParsedActions);
+        await typeActions(currentActions);
       } else {
         $('runStatus').textContent = `Typing... (${text.length} chars)`;
         log(`[Start] Typing ${text.length} chars`);

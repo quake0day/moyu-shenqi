@@ -76,15 +76,28 @@ ipcMain.handle('docx:parse', async (_, filePath, mode) => {
   try {
     const buffer = fs.readFileSync(filePath);
     if (mode === 'markdown') {
-      // Convert to HTML then to Markdown-like text
       const result = await mammoth.convertToHtml({ buffer });
       const markdown = htmlToMarkdown(result.value);
       return { ok: true, text: markdown, warnings: result.messages };
     } else {
-      // Rich mode: return structured HTML for format-aware typing
       const result = await mammoth.convertToHtml({ buffer });
       const actions = htmlToActions(result.value);
       return { ok: true, actions, warnings: result.messages };
+    }
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// Parse raw HTML (from Rich Paste contenteditable)
+ipcMain.handle('docx:parseHtml', async (_, html, mode) => {
+  try {
+    if (mode === 'markdown') {
+      const markdown = htmlToMarkdown(html);
+      return { ok: true, text: markdown };
+    } else {
+      const actions = htmlToActions(html);
+      return { ok: true, actions };
     }
   } catch (e) {
     return { ok: false, error: e.message };

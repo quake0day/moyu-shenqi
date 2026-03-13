@@ -17,4 +17,5 @@ contextBridge.exposeInMainWorld('ollama', {
 contextBridge.exposeInMainWorld('docx', {
   openFile: () => ipcRenderer.invoke('docx:openFile'),
   parse: (filePath, mode) => ipcRenderer.invoke('docx:parse', filePath, mode),
+  parseHtml: (html, mode) => ipcRenderer.invoke('docx:parseHtml', html, mode),
 });
