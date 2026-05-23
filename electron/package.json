@@ -13,22 +13,51 @@
   "build": {
     "appId": "com.kmbox.worksimulator",
     "productName": "KMBox Work Simulator",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "files": [
-      "**/*"
+      "**/*",
+      "!**/*.md",
+      "!dist/**"
     ],
+    "directories": {
+      "output": "dist"
+    },
     "win": {
       "target": "dir",
       "signAndEditExecutable": false,
       "sign": false
     },
     "mac": {
-      "target": "dmg"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "writeUpdateInfo": false
     },
     "linux": {
       "target": "AppImage"
     }
   },
   "devDependencies": {
+    "@electron/packager": "^20.0.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
   },
